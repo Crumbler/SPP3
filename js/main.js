@@ -40,10 +40,12 @@ async function getStatuses() {
 
         let statusOptions = statuses.map(status => createStatusOption(status));
 
+        $('.modal #task-status > *').remove();
         $('.modal #task-status').append(...statusOptions);
 
         statusOptions = statuses.map(status => createStatusOption(status));
 
+        $('#filter-type > *').remove();
         $('#filter-type').append(...statusOptions);
     }
     else {

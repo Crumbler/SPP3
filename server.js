@@ -40,7 +40,15 @@ app.post('/login', upload.none(), (req, res) => {
     res.status(401).end();
   }
 
-  res.cookie('token', '5', {
+  const token = jwt.sign({
+    username,
+    password
+  },
+  jwtKey, {
+    expiresIn: jwtExpirySeconds
+  });
+
+  res.cookie('token', token, {
     httpOnly: true,
     maxAge: jwtExpirySeconds * 1000
   });
@@ -52,9 +60,24 @@ app.post('/login', upload.none(), (req, res) => {
 
 
 function checkAuth(req, res, next) {
-  if (req.cookies.token !== '5') {
+  if (!req.cookies.token) {
     return res.status(401).end();
   }
+
+  const token = req.cookies.token;
+
+  try {
+		jwt.verify(token, jwtKey);
+	} catch (err) {
+		if (err instanceof jwt.JsonWebTokenError) {
+			// Unauthorized JWT
+      console.log('Unauthorized JWT');
+			return res.status(401).end();
+		}
+		// Otherwise, bad request
+    console.log('Bad request');
+		return res.status(400).end();
+	}
 
   next();
 }
