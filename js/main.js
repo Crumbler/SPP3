@@ -1,7 +1,9 @@
 'use strict'
 
 const modalTask = $('.modal-task')[0],
-      modalTaskForm = $('.modal-task .modal-content')[0];
+      modalTaskForm = $('.modal-task .modal-content')[0],
+      modalLogin = $('.modal-login')[0],
+      modalLoginForm = $('.modal-login .modal-content')[0];
 
 let statuses, tasks, currentTask,
     currentTaskElement;
@@ -14,6 +16,7 @@ window.onload = onWindowLoad;
 $('header > form').submit(onFilter);
 $('.modal-task .modal-content').submit(onModalTaskSubmit);
 $('.modal-task .modal-content .button-close').click(onModalTaskClose);
+$('.modal-login .modal-content').submit(onModalLogin);
 $('.task-add-button').click(onAddClick);
 
 
@@ -31,15 +34,28 @@ function clearTasks() {
 
 async function getStatuses() {
     const response = await fetch('/statuses');
-    statuses = await response.json();
 
-    let statusOptions = statuses.map(status => createStatusOption(status));
+    if (response.ok) {
+        statuses = await response.json();
 
-    $('.modal #task-status').append(...statusOptions);
+        let statusOptions = statuses.map(status => createStatusOption(status));
 
-    statusOptions = statuses.map(status => createStatusOption(status));
+        $('.modal #task-status').append(...statusOptions);
 
-    $('#filter-type').append(...statusOptions);
+        statusOptions = statuses.map(status => createStatusOption(status));
+
+        $('#filter-type').append(...statusOptions);
+    }
+    else {
+        promptLogin();
+    }
+}
+
+
+function promptLogin() {
+    resetModalLoginForm();
+
+    showModalLogin();
 }
 
 
@@ -59,11 +75,17 @@ async function getTasks(status) {
     }
 
     const response = await fetch(url);
-    tasks = await response.json();
 
-    const taskElements = tasks.map(task => createTaskElement(task));
+    if (response.ok) {
+        tasks = await response.json();
 
-    $('main').append(...taskElements);
+        const taskElements = tasks.map(task => createTaskElement(task));
+
+        $('main').append(...taskElements);
+    }
+    else {
+        promptLogin();
+    }
 }
 
 
@@ -132,8 +154,37 @@ function onFilter(event) {
 }
 
 
+async function onModalLogin(event) {
+    event.preventDefault();
+
+    const formData = new FormData(this);
+
+    const response = await fetch(`/login`, {
+        method: 'POST',
+        body: formData
+    });
+
+    if (response.ok) {
+        clearTasks();
+        await getStatuses();
+        getTasks();
+
+        hideModalLogin();
+    }
+    else {
+        resetModalLoginForm();
+        alert('Invalid credentials');
+    }
+}
+
+
 function resetModalTaskForm() {
     modalTaskForm.reset();
+}
+
+
+function resetModalLoginForm() {
+    modalLoginForm.reset();
 }
 
 
@@ -142,10 +193,20 @@ function hideModalTask() {
 }
 
 
+function hideModalLogin() {
+    modalLogin.style.display = 'none';
+}
+
+
 function showModalTask() {
     modalTask.style.display = 'block';
 
     $('.modal-task .modal-content .button-submit')[0].value = addingTask ? 'Add' : 'Update';
+}
+
+
+function showModalLogin() {
+    modalLogin.style.display = 'block';
 }
 
 

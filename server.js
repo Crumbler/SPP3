@@ -2,11 +2,19 @@ const express = require('express');
 const multer  = require('multer');
 const upload = multer({ dest: 'Task files/' });
 const fs = require('fs');
-const { path } = require('express/lib/application');
+const cookieParser = require('cookie-parser');
+const { path, use } = require('express/lib/application');
+const jwt = require('jsonwebtoken');
 const app = express();
+
 const port = 80;
+const jwtKey = 'mysecretkey';
+const jwtExpirySeconds = 300;
+const uName = 'Bob';
+const uPass = 'dale123';
 
 
+app.use('/', express.static('html'));
 app.use('/', express.static('css'));
 app.use('/', express.static('js'));
 app.use('/', express.static('svg'));
@@ -14,25 +22,50 @@ app.use('/', express.static('svg'));
 
 let statuses;
 
-function loadStatuses()
-{
+function loadStatuses() {
   statuses = JSON.parse(fs.readFileSync('taskStatuses.json'));
 }
 
 loadStatuses();
 
 
-app.get('/', (req, res) => {
-  res.sendFile('./html/index.html', { root: __dirname });
+app.use(cookieParser());
+
+
+app.post('/login', upload.none(), (req, res) => {
+  const { username, password } = req.body;
+
+  if (username !== uName || password !== uPass) {
+    console.log('Failed to log in');
+    res.status(401).end();
+  }
+
+  res.cookie('token', '5', {
+    httpOnly: true,
+    maxAge: jwtExpirySeconds * 1000
+  });
+
+  console.log('Successful login');
+
+  res.status(200).end();
 });
 
 
-app.get('/statuses', (req, res) => {
+function checkAuth(req, res, next) {
+  if (req.cookies.token !== '5') {
+    return res.status(401).end();
+  }
+
+  next();
+}
+
+
+app.get('/statuses', checkAuth, (req, res) => {
   res.send(statuses);
 })
 
 
-app.get('/tasks', (req, res) => {
+app.get('/tasks', checkAuth, (req, res) => {
   const rawTasks = fs.readFileSync('tasks.json');
   let tasks = JSON.parse(rawTasks);
 
@@ -48,7 +81,7 @@ app.get('/tasks', (req, res) => {
 })
 
 
-app.get('/tasks/:id/file', (req, res) => {
+app.get('/tasks/:id/file', checkAuth, (req, res) => {
   const rawTasks = fs.readFileSync('tasks.json');
   const tasks = JSON.parse(rawTasks);
   
@@ -60,7 +93,7 @@ app.get('/tasks/:id/file', (req, res) => {
 })
 
 
-app.put('/tasks/:id/update', upload.single('file'), (req, res) => {
+app.put('/tasks/:id/update', checkAuth, upload.single('file'), (req, res) => {
   if (!req.body) {
     return res.sendStatus(400);
   }
@@ -108,7 +141,7 @@ app.put('/tasks/:id/update', upload.single('file'), (req, res) => {
 })
 
 
-app.post('/tasks/add', upload.single('file'), (req, res) => {
+app.post('/tasks/add', checkAuth, upload.single('file'), (req, res) => {
   if (!req.body) {
     return res.sendStatus(400);
   }
@@ -152,7 +185,7 @@ app.post('/tasks/add', upload.single('file'), (req, res) => {
 })
 
 
-app.delete('/tasks/:id/delete', (req, res) => {
+app.delete('/tasks/:id/delete', checkAuth, (req, res) => {
   const rawTasks = fs.readFileSync('tasks.json');
   let tasks = JSON.parse(rawTasks);
 
