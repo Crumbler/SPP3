@@ -16,7 +16,8 @@ window.onload = onWindowLoad;
 $('header > form').submit(onFilter);
 $('.modal-task .modal-content').submit(onModalTaskSubmit);
 $('.modal-task .modal-content .button-close').click(onModalTaskClose);
-$('.modal-login .modal-content').submit(onModalLogin);
+$('.modal-login .modal-content').submit(onModalLoginSubmit);
+$('.modal-login .modal-content .button-signup').click(onModalLoginSignUp);
 $('.task-add-button').click(onAddClick);
 
 
@@ -156,12 +157,24 @@ function onFilter(event) {
 }
 
 
-async function onModalLogin(event) {
+function onModalLoginSignUp() {
+    const formData = new FormData(this.parentNode);
+
+    LogSign('/signup', formData);
+}
+
+
+function onModalLoginSubmit(event) {
     event.preventDefault();
 
     const formData = new FormData(this);
 
-    const response = await fetch(`/login`, {
+    LogSign('/login', formData);
+}
+
+
+async function LogSign(urlpath, formData) {
+    const response = await fetch(urlpath, {
         method: 'POST',
         body: formData
     });

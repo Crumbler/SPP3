@@ -5,13 +5,12 @@ const fs = require('fs');
 const cookieParser = require('cookie-parser');
 const { path, use } = require('express/lib/application');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const app = express();
 
 const port = 80;
 const jwtKey = 'mysecretkey';
 const jwtExpirySeconds = 300;
-const uName = 'Bob';
-const uPass = 'dale123';
 
 
 app.use('/', express.static('html'));
@@ -32,19 +31,63 @@ loadStatuses();
 app.use(cookieParser());
 
 
+app.post('/signup', upload.none(), (req, res) => {
+  let { username, password } = req.body;
+
+  const rawUsers = fs.readFileSync('users.json');
+  let users = JSON.parse(rawUsers);
+
+  password = bcrypt.hashSync(password, 10);
+
+  const newId = users[users.length - 1].id + 1;
+
+  const user = { 
+    id: newId,
+    username,
+    password
+  };
+
+  users.push(user);
+
+  const token = jwt.sign({
+    username,
+    id: user.id
+  }, jwtKey, {
+    expiresIn: jwtExpirySeconds
+  });
+
+  res.cookie('token', token, {
+    httpOnly: true,
+    maxAge: jwtExpirySeconds * 1000
+  });
+
+  const writeData = JSON.stringify(users, null, 2);
+  fs.writeFileSync('users.json', writeData);
+
+  console.log('Successful signup and login');
+
+  res.status(200).end();
+});
+
+
 app.post('/login', upload.none(), (req, res) => {
   const { username, password } = req.body;
 
-  if (username !== uName || password !== uPass) {
+  const rawUsers = fs.readFileSync('users.json');
+
+  const users = JSON.parse(rawUsers);
+
+  const user = users.find(u => u.username === username);
+
+  if (!user || !(bcrypt.compareSync(password, user.password))) {
     console.log('Failed to log in');
-    res.status(401).end();
+    return res.status(401).end();
   }
 
   const token = jwt.sign({
     username,
-    password
-  },
-  jwtKey, {
+    id: user.id
+  }, jwtKey, {
     expiresIn: jwtExpirySeconds
   });
 
